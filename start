@@ -38,10 +38,56 @@ fi
 
 echo "Starting Weblate $WEBLATE_VERSION..."
 
+# Append GitHub SSH host keys from https://api.github.com/meta (HTTPS, verified JSON).
+# Exits 0 on success, non-zero on failure.
+fetch_github_ssh_keys_from_meta() {
+    /app/venv/bin/python << 'PY'
+import json
+import sys
+import urllib.error
+import urllib.request
+
+try:
+    req = urllib.request.Request(
+        "https://api.github.com/meta",
+        headers={"User-Agent": "boost-weblate-docker-start"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.load(resp)
+    keys = data.get("ssh_keys") or []
+    if not keys:
+        sys.exit(1)
+    with open("/app/data/ssh/known_hosts", "a", encoding="utf-8") as f:
+        for key in keys:
+            key = key.strip()
+            if key:
+                f.write("github.com " + key + "\n")
+except (OSError, urllib.error.URLError, ValueError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+}
+
+# SSH data dir (keys, known_hosts)
+mkdir -p /app/data/ssh
+
 # Fix permissions on SSH private key.
 # Fails silently if the file doesn't exist yet.
 chmod 600 /app/data/ssh/id_rsa 2> /dev/null || true
 chmod 600 /app/data/ssh/id_ed25519 2> /dev/null || true
+
+# Ensure GitHub host keys are in known_hosts so git clone via SSH works.
+# Prefer GITHUB_KNOWN_HOSTS, else official keys from https://api.github.com/meta (HTTPS).
+# ssh-keyscan is only a last resort if both are unavailable.
+if ! grep -q "github.com" /app/data/ssh/known_hosts 2> /dev/null; then
+    if [ -n "${GITHUB_KNOWN_HOSTS:-}" ]; then
+        printf '%s\n' "$GITHUB_KNOWN_HOSTS" >> /app/data/ssh/known_hosts
+    elif fetch_github_ssh_keys_from_meta; then
+        :
+    else
+        echo "Warning: could not use GITHUB_KNOWN_HOSTS or api.github.com/meta; falling back to ssh-keyscan github.com" >&2
+        ssh-keyscan github.com >> /app/data/ssh/known_hosts 2> /dev/null || true
+    fi
+fi
 
 # Check whether data volume is writable
 if [ ! -w /app/data ]; then
@@ -161,12 +207,12 @@ fi
 
 # Wait for database to get available
 TIMEOUT=0
-until run_weblate shell -c 'from weblate.auth.models import User; User.objects.raw("SELECT 1")' > /dev/null; do
+until run_weblate shell -c 'from weblate.auth.models import User; list(User.objects.raw("SELECT 1"))' > /dev/null; do
     >&2 echo "Database server at ${POSTGRES_HOST:-db} is unavailable - retrying $((30 - TIMEOUT))"
     TIMEOUT=$((TIMEOUT + 1))
     if [ $TIMEOUT -gt 30 ]; then
         run_weblate shell -c 'from weblate.auth.models import User; User.objects.exists()'
-        fail_dep PosgreSQL
+        fail_dep PostgreSQL
     fi
     sleep 1
 done

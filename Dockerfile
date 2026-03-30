@@ -1,16 +1,13 @@
-FROM weblate/dev:2026.13.0@sha256:74da8270dfc2e24abfc9402354c61ccb38d13c4b2df4f406bbd1685edf0168e2 AS build
+FROM weblate/dev:2026.9.0@sha256:2c93f762c32c569d357e254f8d215d489153cddab9f4155d936f34ffdc590134 AS build
 
-ARG TARGETARCH
-
-# renovate: datasource=pypi depName=Weblate versioning=pep440
-ENV WEBLATE_VERSION=5.16.2
 ENV WEBLATE_EXTRAS=all,MySQL,zxcvbn,saml
 
 SHELL ["/bin/bash", "-o", "pipefail", "-x", "-c"]
 
-COPY --link requirements.txt patches /app/src/
+COPY --link weblate-docker/requirements.txt weblate-docker/patches /app/src/
 
-# Install dependencies
+# Install boost-weblate source
+COPY . /app/boost-weblate/
 # hadolint ignore=DL3008,DL3013,SC2046,DL3003,SC1091
 RUN \
   --mount=type=tmpfs,target=/tmp \
@@ -20,26 +17,12 @@ RUN \
   && . /app/venv/bin/activate \
   && uv --version \
   && python --version \
-  && case "$WEBLATE_VERSION" in \
-    *+* ) \
-      uv pip install \
-        --compile-bytecode \
-        --no-binary xmlsec \
-        --no-binary lxml \
-        -r /app/src/requirements.txt \
-        "https://github.com/translate/translate/archive/master.zip" \
-        "https://github.com/WeblateOrg/language-data/archive/main.zip" \
-        "https://github.com/WeblateOrg/weblate/archive/$WEBLATE_DOCKER_GIT_REVISION.zip#egg=Weblate[$WEBLATE_EXTRAS]" \
-        ;; \
-    * ) \
-      uv pip install \
-        --compile-bytecode \
-        --no-binary xmlsec \
-        --no-binary lxml \
-        -r /app/src/requirements.txt \
-        "Weblate[$WEBLATE_EXTRAS]==$WEBLATE_VERSION" \
-      ;; \
-  esac \
+  && uv pip install \
+      --compile-bytecode \
+      --no-binary xmlsec \
+      --no-binary lxml \
+      -r /app/src/requirements.txt \
+      "/app/boost-weblate[${WEBLATE_EXTRAS}]" \
   && rm -rf /app/venv/lib/python*/site-packages/slapdtest \
   && uv cache prune --ci \
   && du -sh "$UV_CACHE_DIR" \
@@ -51,23 +34,13 @@ RUN find /app/src -name '*.patch' -print0 | sort -z | \
   xargs -n1 -0 -r patch -p1 -d "/app/venv/lib/python${PYVERSION}/site-packages/" -i
 
 
-FROM weblate/base:2026.13.0@sha256:f6256ee8c1801cbbb160844b8b4f1eb20d1344a7387e800924ae7cbd11b1d5d5 AS final
+FROM weblate/base:2026.9.0@sha256:2d80c7fa7d54006a3010d8e93e65075df354c9fef75761203ce4fa5e5d29b03b AS final
 
 # renovate: datasource=pypi depName=Weblate versioning=pep440
 ENV WEBLATE_VERSION=5.16.2
 
 LABEL name="Weblate"
 LABEL version=$WEBLATE_VERSION
-LABEL maintainer="Michal Čihař <michal@cihar.com>"
-LABEL org.opencontainers.image.url="https://weblate.org/"
-LABEL org.opencontainers.image.documentation="https://docs.weblate.org/en/latest/admin/install/docker.html"
-LABEL org.opencontainers.image.source="https://github.com/WeblateOrg/docker"
-LABEL org.opencontainers.image.version=$WEBLATE_VERSION
-LABEL org.opencontainers.image.author="Michal Čihař <michal@weblate.org>"
-LABEL org.opencontainers.image.vendor="Weblate"
-LABEL org.opencontainers.image.title="Weblate"
-LABEL org.opencontainers.image.description="A web-based continuous localization system with tight version control integration"
-LABEL org.opencontainers.image.licenses="GPL-3.0-or-later"
 
 # Increased start period for migrations run
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5m CMD /app/bin/health_check
@@ -79,7 +52,7 @@ ENV DJANGO_SETTINGS_MODULE=weblate.settings_docker
 COPY --from=build /app /app
 
 # Configuration for Weblate, nginx and supervisor
-COPY --link etc /etc/
+COPY --link weblate-docker/etc /etc/
 
 # Customize Python:
 # - Search path for custom modules
@@ -91,12 +64,6 @@ RUN \
     chown -R weblate:weblate /app/data/python
 
 # Fix permissions and adjust files to be able to edit them as user on start
-# - localtime is needed for setting system timezone based on environment
-# - timezone is removed to avoid dpkg handling localtime updates
-# - we generate nginx configuration based on environment
-# - authorize passwd edition so we can fix weblate uid on startup
-# - log, run and home directories
-# - disable su for non root to avoid privilege escapation by changing /etc/passwd
 RUN rm -f /etc/localtime /etc/timezone \
   && ln -s /tmp/localtime /etc/localtime \
   && chgrp -R 0 /var/log/nginx/ /var/lib/nginx /app/data /app/cache /run /home/weblate /etc/supervisor/conf.d \
@@ -110,15 +77,40 @@ RUN rm -f /etc/localtime /etc/timezone \
   && chmod 664 /etc/passwd /etc/group \
   && sed -i '/pam_rootok.so/a auth requisite pam_deny.so' /etc/pam.d/su
 
+# Install po4a v0.74 from source (required by weblate/formats/asciidoc.py)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl \
+        libyaml-tiny-perl \
+        build-essential \
+        libmodule-build-perl \
+        gettext \
+        libxml2-utils \
+        docbook-xsl \
+        xsltproc \
+    && cd /tmp \
+    && curl -fsSL -o po4a-0.74.tar.gz \
+        https://github.com/mquinson/po4a/releases/download/v0.74/po4a-0.74.tar.gz \
+    && echo "25fc323f2ba37bbd48c3af0ebf49952644b0e468261f98633e91219a838fe7c2  po4a-0.74.tar.gz" \
+        | sha256sum -c - \
+    && tar xzf po4a-0.74.tar.gz \
+    && cd po4a-0.74 \
+    && perl Build.PL \
+    && ./Build build \
+    && ./Build install \
+    && cd /tmp \
+    && rm -rf po4a-0.74.tar.gz po4a-0.74 \
+    && apt-get purge -y build-essential libmodule-build-perl xsltproc docbook-xsl libxml2-utils curl \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
 # Entrypoint
-COPY --link --chmod=0755 start health_check /app/bin/
+COPY --link --chmod=0755 weblate-docker/start weblate-docker/health_check /app/bin/
 
 EXPOSE 8080
 VOLUME /app/data
 VOLUME /app/cache
 
-# Numerical value is needed for OpenShift S2I, see
-# https://docs.openshift.com/container-platform/latest/openshift_images/create-images.html
+# Numerical value is needed for OpenShift S2I
 USER 1000
 
 ENTRYPOINT ["/app/bin/start"]
