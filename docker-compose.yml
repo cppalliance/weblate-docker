@@ -6,13 +6,6 @@ services:
     command: [valkey-server, --save, '60', '1', --loglevel, warning]
     restart: always
     read_only: true
-  database:
-    image: postgres:18-alpine
-    volumes:
-    - postgres-data:/var/lib/postgresql
-    env_file:
-    - ./environment
-    restart: always
   weblate:
     build:
       context: ..
@@ -22,7 +15,6 @@ services:
     - host.docker.internal:host-gateway
     depends_on:
     - cache
-    - database
     volumes:
     - weblate-data:/app/data
     - weblate-cache:/app/cache
@@ -38,5 +30,4 @@ services:
 volumes:
   weblate-cache: {}
   weblate-data: {}
-  postgres-data: {}
   redis-data: {}
