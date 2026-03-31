@@ -207,7 +207,7 @@ fi
 
 # Wait for database to get available
 TIMEOUT=0
-until run_weblate shell -c 'from weblate.auth.models import User; list(User.objects.raw("SELECT 1"))' > /dev/null; do
+until run_weblate shell -c 'from django.db import connection; connection.cursor().execute("SELECT 1")' > /dev/null; do
     >&2 echo "Database server at ${POSTGRES_HOST:-db} is unavailable - retrying $((30 - TIMEOUT))"
     TIMEOUT=$((TIMEOUT + 1))
     if [ $TIMEOUT -gt 30 ]; then
