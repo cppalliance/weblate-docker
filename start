@@ -67,6 +67,17 @@ except (OSError, urllib.error.URLError, ValueError, json.JSONDecodeError):
 PY
 }
 
+# Fail fast if the data volume is not writable before creating paths under it.
+# (Otherwise mkdir -p /app/data/ssh, or host-side fixes like sudo mkdir /app/data/ssh,
+# can error first and obscure this clearer diagnostic.)
+if [ ! -w /app/data ]; then
+    echo "The /app/data volume is not writable, please adjust the permissions. Weblate is running as uid $(id -u)"
+    echo
+    echo "Please see https://github.com/WeblateOrg/docker/issues/2096 in case"
+    echo "the permissions on the volume are actually correct."
+    exit 1
+fi
+
 # SSH data dir (keys, known_hosts)
 mkdir -p /app/data/ssh
 
@@ -77,25 +88,17 @@ chmod 600 /app/data/ssh/id_ed25519 2> /dev/null || true
 
 # Ensure GitHub host keys are in known_hosts so git clone via SSH works.
 # Prefer GITHUB_KNOWN_HOSTS, else official keys from https://api.github.com/meta (HTTPS).
-# ssh-keyscan is only a last resort if both are unavailable.
+# If both are unavailable, fail closed (do not use ssh-keyscan: unauthenticated host keys).
 if ! grep -q "github.com" /app/data/ssh/known_hosts 2> /dev/null; then
     if [ -n "${GITHUB_KNOWN_HOSTS:-}" ]; then
         printf '%s\n' "$GITHUB_KNOWN_HOSTS" >> /app/data/ssh/known_hosts
     elif fetch_github_ssh_keys_from_meta; then
         :
     else
-        echo "Warning: could not use GITHUB_KNOWN_HOSTS or api.github.com/meta; falling back to ssh-keyscan github.com" >&2
-        ssh-keyscan github.com >> /app/data/ssh/known_hosts 2> /dev/null || true
+        >&2 echo "Error: GitHub SSH host keys are missing and could not be fetched."
+        >&2 echo "Set GITHUB_KNOWN_HOSTS to GitHub's published SSH host keys, or fix network access to https://api.github.com/meta."
+        exit 1
     fi
-fi
-
-# Check whether data volume is writable
-if [ ! -w /app/data ]; then
-    echo "The /app/data volume is not writable, please adjust the permissions. Weblate is running as uid $(id -u)"
-    echo
-    echo "Please see https://github.com/WeblateOrg/docker/issues/2096 in case"
-    echo "the permissions on the volume are actually correct."
-    exit 1
 fi
 
 # Generate secret
@@ -211,7 +214,7 @@ until run_weblate shell -c 'from django.db import connection; connection.cursor(
     >&2 echo "Database server at ${POSTGRES_HOST:-db} is unavailable - retrying $((30 - TIMEOUT))"
     TIMEOUT=$((TIMEOUT + 1))
     if [ $TIMEOUT -gt 30 ]; then
-        run_weblate shell -c 'from weblate.auth.models import User; User.objects.exists()'
+        run_weblate shell -c 'from django.db import connection; connection.cursor().execute("SELECT 1")'
         fail_dep PostgreSQL
     fi
     sleep 1

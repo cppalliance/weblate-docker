@@ -1,3 +1,11 @@
+# Secrets and local env (never send to daemon / bake into layers; see environment.example)
+environment
+.env
+.env.*
+*.key
+*.pem
+!**/ffdhe2048.pem
+
 # VCS (not needed for pip install)
 .git
 .github
