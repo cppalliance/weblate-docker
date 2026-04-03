@@ -10,10 +10,10 @@
 # ---------------------------------------------------------------------------
 WEBLATE_DEBUG=0
 WEBLATE_LOGLEVEL=INFO
-WEBLATE_SITE_TITLE=Weblate
-WEBLATE_ADMIN_NAME=Weblate Admin
-WEBLATE_ADMIN_EMAIL=weblate@example.com
-WEBLATE_SITE_DOMAIN=localhost:8000
+WEBLATE_SITE_TITLE=Boost-Weblate
+WEBLATE_ADMIN_NAME=Boost-Weblate Admin
+WEBLATE_ADMIN_EMAIL=admin@example.com
+WEBLATE_SITE_DOMAIN=
 WEBLATE_ADMIN_PASSWORD=
 WEBLATE_SERVER_EMAIL=noreply@example.com
 WEBLATE_DEFAULT_FROM_EMAIL=noreply@example.com
@@ -29,6 +29,7 @@ WEBLATE_TIME_ZONE=UTC
 # SSL / reverse proxy
 # ---------------------------------------------------------------------------
 #WEBLATE_ENABLE_HTTPS=1
+#WEBLATE_CSRF_TRUSTED_ORIGINS=
 #WEBLATE_IP_PROXY_HEADER=HTTP_X_FORWARDED_FOR
 #WEBLATE_SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
 
@@ -63,9 +64,11 @@ REDIS_PORT=6379
 # ---------------------------------------------------------------------------
 # Mail server
 # ---------------------------------------------------------------------------
-WEBLATE_EMAIL_HOST=localhost
+WEBLATE_EMAIL_HOST=
+WEBLATE_EMAIL_PORT=
 WEBLATE_EMAIL_HOST_USER=
 WEBLATE_EMAIL_HOST_PASSWORD=
+WEBLATE_EMAIL_USE_TLS=1
 # To disable email entirely (e.g. no SMTP available):
 #WEBLATE_EMAIL_BACKEND=django.core.mail.backends.dummy.EmailBackend
 
