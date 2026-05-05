@@ -1,3 +1,10 @@
+# Pins intentionally lag https://github.com/WeblateOrg/docker/blob/main/requirements.txt
+# (upstream docker main tracks newer Weblate + Django). Keep this file aligned with
+# WEBLATE_VERSION in Dockerfile (currently 5.16.2 / Django 5.2 LTS), not with docker main.
+# High-signal deltas vs docker main when last reviewed: Django 5.2.x vs 6.x; redis 5.x vs 6.x;
+# altcha, gevent, django-celery-beat, djangorestframework, social-auth-* move with that stack.
+# Renovate (.github/renovate.json) may propose bumps—evaluate against WEBLATE + boost-weblate, not
+# blindly to match docker main.
 aeidon==1.15
 ahocorasick-rs==1.0.3
 aliyun-python-sdk-alimt==3.2.0
@@ -22,7 +29,7 @@ django-otp-webauthn==0.8.0
 django-redis==6.0.0
 django_compressor==4.6.0
 djangorestframework==3.16.1
-# Alernative Celery pool implementation
+# Alternative Celery pool implementation
 gevent==25.9.1
 git-review==2.5.0
 google-cloud-translate==3.24.0
