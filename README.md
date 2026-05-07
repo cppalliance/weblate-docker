@@ -20,6 +20,15 @@ used by over 2500 libre projects and companies in more than 165 countries.**
 
 The webserver is running on the port 8080.
 
+## Operations / deployment
+
+**Repositories:** **`weblate`** (application fork) and **`weblate-docker`** (this repo). Your checkout folder name may differ—many installs clone **`weblate`** into a directory called **`boost-weblate`** (the Docker build context), with **`weblate-docker/`** as a submodule beside it.
+
+[`docker-compose.yml`](docker-compose.yml) uses `context: ..` and `dockerfile: weblate-docker/Dockerfile`. Production CD (see **`weblate`** `.github/workflows/cd.yml`) also copies [`weblate-docker/.dockerignore`](.dockerignore) to the application root before `docker compose up --build`.
+
+- [Deployment overview](docs/deployment-overview.md) — scope, components, environments, ops handoff
+- [Deployment runbook](docs/deployment-runbook.md) — setup, health checks, upgrade and rollback, CI/CD sequence
+
 ## Documentation
 
 Detailed documentation is available in [Weblate documentation][doc].
