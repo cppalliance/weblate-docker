@@ -2,7 +2,7 @@
 
 # Boost-Weblate Docker image
 
-This repository packages **[Boost-Weblate](https://weblate.org/)**—Weblate plus the `boost-weblate` Python distribution—for deployment as **`boost-weblate:latest`**. It is derived from the [WeblateOrg/docker](https://github.com/WeblateOrg/docker) layout (multi-stage `weblate/dev` + `weblate/base`, nginx, supervisor, Celery).
+This repository packages **Boost-Weblate**—Weblate plus the `boost-weblate` Python distribution—for deployment as **`boost-weblate:latest`**. It is derived from the [WeblateOrg/docker](https://github.com/WeblateOrg/docker) layout (multi-stage `weblate/dev` + `weblate/base`, nginx, supervisor, Celery).
 
 Upstream Weblate remains libre software; see [weblate.org](https://weblate.org/) and the [official Docker install docs][doc].
 
@@ -51,9 +51,3 @@ Generic Weblate Docker variables (debug, hosts, mail, LDAP, Git hosting tokens, 
 - **Weblate version:** pinned via **`WEBLATE_VERSION`** in the `Dockerfile` (see that file for the current value).
 - **Patches:** any `*.patch` files under `weblate-docker/patches` are applied to the installed Weblate packages at build time.
 
-## Related repositories
-
-- [Weblate docker-compose](https://github.com/WeblateOrg/docker-compose) — reference stacks (this repo vendors it as a **git submodule** at `docker-compose/`).
-- [Official Weblate Docker image docs][doc]
-
-[doc]: https://docs.weblate.org/en/latest/admin/install/docker.html
