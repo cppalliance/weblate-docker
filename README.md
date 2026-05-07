@@ -1,24 +1,55 @@
 <a href="https://weblate.org/"><img alt="Weblate" src="https://s.weblate.org/cdn/Logo-Darktext-borders.png" height="80px" /></a>
 
-**Weblate is libre software web-based continuous localization system,
-used by over 2500 libre projects and companies in more than 165 countries.**
+# Boost-Weblate Docker image
 
-# Official Docker container for Weblate
+This repository packages **Boost-Weblate**—Weblate plus the `boost-weblate` Python distribution—for deployment as **`boost-weblate:latest`**. It is derived from the [WeblateOrg/docker](https://github.com/WeblateOrg/docker) layout (multi-stage `weblate/dev` + `weblate/base`, nginx, supervisor, Celery).
 
-[![Website](https://img.shields.io/badge/website-weblate.org-blue.svg)](https://weblate.org/)
-[![Translation status](https://hosted.weblate.org/widgets/weblate/-/svg-badge.svg)](https://hosted.weblate.org/engage/weblate/?utm_source=widget)
-[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/552/badge)](https://bestpractices.coreinfrastructure.org/projects/552)
-[![Documentation](https://readthedocs.org/projects/weblate/badge/)][doc]
+Upstream Weblate remains libre software; see [weblate.org](https://weblate.org/) and the [official Docker install docs][doc].
 
-## Running Weblate
+## Repository layout (required for builds)
 
-- [Weblate docker-compose](https://github.com/WeblateOrg/docker-compose)
-- [OpenShift](https://docs.weblate.org/en/latest/admin/install/openshift.html)
-- [Helm chart for Weblate](https://hub.helm.sh/charts/weblate/weblate)
+The `Dockerfile` expects a **parent directory** as the Docker build context:
 
-## Exposed ports
+| Path (relative to parent) | Role |
+|---------------------------|------|
+| `weblate-docker/` | This repo (Dockerfile, `requirements.txt`, `etc/`, `start`, …) |
+| Parent root | **`boost-weblate`** sources (`COPY . /app/boost-weblate/` installs `/app/boost-weblate[extras]`) |
 
-The webserver is running on the port 8080.
+`docker-compose.yml` is written for that layout: build **`context: ..`**, **`dockerfile: weblate-docker/Dockerfile`**. Clone or arrange your monorepo so the docker tree lives at **`weblate-docker/`** next to the application root that pip installs as `boost-weblate`.
+
+## Quick start
+
+1. Place this tree at **`../weblate-docker`** relative to your **`boost-weblate`** repo root (see above).
+2. Copy and edit environment variables:
+
+   ```bash
+   cp environment.example environment
+   ```
+
+   Set at least **`WEBLATE_SITE_DOMAIN`**, **`POSTGRES_*`**, and any admin/email/Git credentials you need. PostgreSQL is expected **outside** the compose file (for example on the host); **`POSTGRES_HOST`** defaults to `host.docker.internal` in `environment.example`.
+
+3. From **`weblate-docker/`**, build and run:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+4. Open the UI at **http://localhost:8000** (compose maps **8000 → 8080**; nginx listens on **8080** inside the container).
+
+## Fork-specific settings
+
+See **`environment.example`** for Boost-oriented options, including:
+
+- **`AUTO_BATCH_TRANSLATE_VIA_OPENROUTER`** — optional batch translation via OpenRouter.
+- **`BOOST_ENDPOINT_ADD_TRANSLATION_SECONDS`** — wait time before treating a component/translation as ready when adding languages.
+
+Generic Weblate Docker variables (debug, hosts, mail, LDAP, Git hosting tokens, and more) are documented in the [Weblate Docker documentation][doc].
+
+## Image details
+
+- **Image name (compose):** `boost-weblate:latest`
+- **Weblate version:** pinned via **`WEBLATE_VERSION`** in the `Dockerfile` (see that file for the current value).
+- **Patches:** any `*.patch` files under `weblate-docker/patches` are applied to the installed Weblate packages at build time.
 
 ## Operations / deployment
 
@@ -29,8 +60,5 @@ The webserver is running on the port 8080.
 - [Deployment overview](docs/deployment-overview.md) — scope, components, environments, ops handoff
 - [Deployment runbook](docs/deployment-runbook.md) — setup, health checks, upgrade and rollback, CI/CD sequence
 
-## Documentation
-
-Detailed documentation is available in [Weblate documentation][doc].
 
 [doc]: https://docs.weblate.org/en/latest/admin/install/docker.html
