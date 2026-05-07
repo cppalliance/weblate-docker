@@ -51,3 +51,4 @@ Generic Weblate Docker variables (debug, hosts, mail, LDAP, Git hosting tokens, 
 - **Weblate version:** pinned via **`WEBLATE_VERSION`** in the `Dockerfile` (see that file for the current value).
 - **Patches:** any `*.patch` files under `weblate-docker/patches` are applied to the installed Weblate packages at build time.
 
+[doc]: https://docs.weblate.org/en/latest/admin/install/docker.html
