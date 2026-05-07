@@ -51,4 +51,14 @@ Generic Weblate Docker variables (debug, hosts, mail, LDAP, Git hosting tokens, 
 - **Weblate version:** pinned via **`WEBLATE_VERSION`** in the `Dockerfile` (see that file for the current value).
 - **Patches:** any `*.patch` files under `weblate-docker/patches` are applied to the installed Weblate packages at build time.
 
+## Operations / deployment
+
+**Repositories:** **`weblate`** (application fork) and **`weblate-docker`** (this repo). Your checkout folder name may differ—many installs clone **`weblate`** into a directory called **`boost-weblate`** (the Docker build context), with **`weblate-docker/`** as a submodule beside it.
+
+[`docker-compose.yml`](docker-compose.yml) uses `context: ..` and `dockerfile: weblate-docker/Dockerfile`. Production CD (see **`weblate`** `.github/workflows/cd.yml`) also copies [`weblate-docker/.dockerignore`](.dockerignore) to the application root before `docker compose up --build`.
+
+- [Deployment overview](docs/deployment-overview.md) — scope, components, environments, ops handoff
+- [Deployment runbook](docs/deployment-runbook.md) — setup, health checks, upgrade and rollback, CI/CD sequence
+
+
 [doc]: https://docs.weblate.org/en/latest/admin/install/docker.html
